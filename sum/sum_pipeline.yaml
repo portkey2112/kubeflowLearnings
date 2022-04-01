@@ -1,0 +1,136 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: sum-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12, pipelines.kubeflow.org/pipeline_compilation_time: '2022-04-01T15:59:01.180632',
+    pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"name": "a", "type": "Integer"},
+      {"name": "b", "type": "Integer"}], "name": "Sum pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12}
+spec:
+  entrypoint: sum-pipeline
+  templates:
+  - name: print-sum-from-file
+    container:
+      args: [--sum, /tmp/inputs/sum/data]
+      command:
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp)
+        printf "%s" "$0" > "$program_path"
+        python3 -u "$program_path" "$@"
+      - |
+        def print_sum_from_file(sum_path):
+            with open(sum_path, 'r') as reader:
+                for line in reader:
+                    print(line)
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='Print sum from file', description='')
+        _parser.add_argument("--sum", dest="sum_path", type=str, required=True, default=argparse.SUPPRESS)
+        _parsed_args = vars(_parser.parse_args())
+
+        _outputs = print_sum_from_file(**_parsed_args)
+      image: python:3.7
+    inputs:
+      artifacts:
+      - {name: sum-output_text, path: /tmp/inputs/sum/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--sum", {"inputPath": "sum"}], "command": ["sh", "-ec", "program_path=$(mktemp)\nprintf
+          \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+          "def print_sum_from_file(sum_path):\n    with open(sum_path, ''r'') as reader:\n        for
+          line in reader:\n            print(line)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Print
+          sum from file'', description='''')\n_parser.add_argument(\"--sum\", dest=\"sum_path\",
+          type=str, required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = print_sum_from_file(**_parsed_args)\n"], "image": "python:3.7"}}, "inputs":
+          [{"name": "sum"}], "name": "Print sum from file"}', pipelines.kubeflow.org/component_ref: '{}'}
+  - name: sum
+    container:
+      args: [--a, '{{inputs.parameters.a}}', --b, '{{inputs.parameters.b}}', --output-text,
+        /tmp/outputs/output_text/data]
+      command:
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp)
+        printf "%s" "$0" > "$program_path"
+        python3 -u "$program_path" "$@"
+      - |
+        def _make_parent_dirs_and_return_path(file_path: str):
+            import os
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            return file_path
+
+        def sum(a, b, output_text_path):
+            res = a + b
+            with open(output_text_path, 'w') as writer:
+                writer.write(f'Given nos are {a} and {b}. The sum is {res}')
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='Sum', description='')
+        _parser.add_argument("--a", dest="a", type=int, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("--b", dest="b", type=int, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("--output-text", dest="output_text_path", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)
+        _parsed_args = vars(_parser.parse_args())
+
+        _outputs = sum(**_parsed_args)
+      image: python:3.7
+    inputs:
+      parameters:
+      - {name: a}
+      - {name: b}
+    outputs:
+      artifacts:
+      - {name: sum-output_text, path: /tmp/outputs/output_text/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--a", {"inputValue": "a"}, "--b", {"inputValue": "b"}, "--output-text",
+          {"outputPath": "output_text"}], "command": ["sh", "-ec", "program_path=$(mktemp)\nprintf
+          \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+          "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n    os.makedirs(os.path.dirname(file_path),
+          exist_ok=True)\n    return file_path\n\ndef sum(a, b, output_text_path):\n    res
+          = a + b\n    with open(output_text_path, ''w'') as writer:\n        writer.write(f''Given
+          nos are {a} and {b}. The sum is {res}'')\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Sum'',
+          description='''')\n_parser.add_argument(\"--a\", dest=\"a\", type=int, required=True,
+          default=argparse.SUPPRESS)\n_parser.add_argument(\"--b\", dest=\"b\", type=int,
+          required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--output-text\",
+          dest=\"output_text_path\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = sum(**_parsed_args)\n"], "image": "python:3.7"}}, "inputs": [{"name":
+          "a", "type": "Integer"}, {"name": "b", "type": "Integer"}], "name": "Sum",
+          "outputs": [{"name": "output_text", "type": "String"}]}', pipelines.kubeflow.org/component_ref: '{}',
+        pipelines.kubeflow.org/arguments.parameters: '{"a": "{{inputs.parameters.a}}",
+          "b": "{{inputs.parameters.b}}"}'}
+  - name: sum-pipeline
+    inputs:
+      parameters:
+      - {name: a}
+      - {name: b}
+    dag:
+      tasks:
+      - name: print-sum-from-file
+        template: print-sum-from-file
+        dependencies: [sum]
+        arguments:
+          artifacts:
+          - {name: sum-output_text, from: '{{tasks.sum.outputs.artifacts.sum-output_text}}'}
+      - name: sum
+        template: sum
+        arguments:
+          parameters:
+          - {name: a, value: '{{inputs.parameters.a}}'}
+          - {name: b, value: '{{inputs.parameters.b}}'}
+  arguments:
+    parameters:
+    - {name: a}
+    - {name: b}
+  serviceAccountName: pipeline-runner
